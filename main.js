@@ -1,22 +1,17 @@
 let htmlSource = document.getElementById('source');
 let htmlTarget = document.getElementById('target');
 let submitButton = document.getElementById('submit');
-let openTagsRegexG = /<\s*(html|head|meta|script|title|link|body|div|p|h1|h2|h3|h4|h5|h6|ul|ol|li|a|strong|em|span|code|table|tr|td|form|button|br|input|option|select|textarea)[^><]*>/g;
 let openTagsRegex = /<\s*(html|head|meta|script|title|link|body|div|p|h1|h2|h3|h4|h5|h6|ul|ol|li|a|strong|em|span|code|table|tr|td|form|button|br|input|option|select|textarea)[^><]*>/;
-let closeTagsRegexG = /<\s*\/\s*(html|head|meta|script|title|link|body|div|p|h1|h2|h3|h4|h5|h6|ul|ol|li|a|strong|em|span|code|table|tr|td|form|button|br|input|option|select|textarea)\s*>/g;
 let closeTagsRegex = /<\s*\/\s*(html|head|meta|script|title|link|body|div|p|h1|h2|h3|h4|h5|h6|ul|ol|li|a|strong|em|span|code|table|tr|td|form|button|br|input|option|select|textarea)\s*>/;
-let allTagsRegexG = /<\s*\/?\s*(html|head|meta|script|title|link|body|div|p|h1|h2|h3|h4|h5|h6|ul|ol|li|a|strong|em|span|code|table|tr|td|form|button|br|input|option|select|textarea)[^><]*>/g;
 let allTagsRegex = /<\s*\/?\s*(html|head|meta|script|title|link|body|div|p|h1|h2|h3|h4|h5|h6|ul|ol|li|a|strong|em|span|code|table|tr|td|form|button|br|input|option|select|textarea)[^><]*>/;
-let tagsRegexG = /<\s*\/?\s*(\w*\d*-*)[^><]*>/g;
 let tagsRegex = /<\s*\/?\s*(\w*\d*-*)[^><]*>/;
-let onlyTextG = />([^><]+)</g;
-let onlyText = />([^><]+)</;  //  >text< add angle brackets to string when try to test
-let selfClosingTagsRegexG = /<\s*(br|meta|input|link)[^><]*>/g;
+let onlyText = />([^><]+)</;  //  >text< add angle brackets to string when try to test : '>'+ text +'<'
 let selfClosingTagsRegex = /<\s*(br|meta|input|link)[^><]*>/;
+let tagStartRegex = /^<\s*\/?\s*(\w*\d*-*)/;
+let tagEndRegex = />$/;
+let tagAttribute = /(\w*\d*-*)[^><"](=|\s+)/;
+let tagValue = /"[^><=]*"/;
 
-// function pairTagRegex(a) {
-//     return new RegExp('<\s*' + a + '[^><]*>(.*?)<\s*\/\s*' + a + '\s*>');
-// }
 
 submitButton.onclick = function () {
     let text = htmlSource.value;
@@ -28,7 +23,9 @@ submitButton.onclick = function () {
         htmlTarget.textContent = 'Not valid HTML! No pair for ' + invalidNesting(textArray) + '!';
     }else {
         let textIndent = indentText(textArray);
-        htmlTarget.textContent = textIndent;
+
+        let codeColorize = colorize(arrayText(textIndent))
+        htmlTarget.appendChild(codeColorize)
     }
 }
 
@@ -137,3 +134,52 @@ function invalidNesting (array) {
     }
     return false
 }
+
+function colorize (array) {
+    let code = document.createElement('code')
+    for (let i = 0; i < array.length; i++) {
+        let span = document.createElement('span')
+        code.appendChild(span)
+        if (tagsRegex.test(array[i])) {
+            span.classList.add('tag')
+            // span.textContent = array[i]
+            let tagArray = arrayTag(array[i])
+            for (let j = 0; j < tagArray.length; j++) {
+                let spanTagPart = document.createElement('span')
+                span.appendChild(spanTagPart)
+                spanTagPart.textContent = tagArray[j]
+                if (tagStartRegex.test(tagArray[j]) || tagArray[j-1] === '<') {
+                    spanTagPart.classList.add('tag')
+                }else if (tagEndRegex.test(tagArray[j])) {
+                    spanTagPart.classList.add('tag')
+                }else if (tagAttribute.test(tagArray[j])) {
+                    spanTagPart.classList.add('attribute')
+                }else if (tagValue.test(tagArray[j])) {
+                    spanTagPart.classList.add('value')
+                }else {console.log('tagpartcolor???')}
+            }
+        }else if (onlyText.test('>'+array[i]+'<')) {
+            span.classList.add('text')
+            span.textContent = array[i]
+        }else {
+            console.log('color???')
+            span.textContent = array[i]
+        }
+    }
+    return code
+}
+
+function arrayTag (text){
+    let tagArray = [];
+    let phrase = '';
+    for (let i = 0; i < text.length; i++) {
+        if (tagStartRegex.test(phrase) || tagEndRegex.test(phrase) ||
+            tagAttribute.test(phrase) || tagValue.test(phrase)) {
+            tagArray.push(phrase);
+            phrase = '';
+        }
+        phrase += text[i];
+    }
+    tagArray.push(phrase);
+    return tagArray
+    }
