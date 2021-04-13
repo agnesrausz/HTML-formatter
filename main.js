@@ -22,15 +22,21 @@ submitButton.onclick = function () {
     let text = htmlSource.value;
     let textNoEnterNoTab = text.replace(/\n/g, '').replace(/\t/g, '').replace(/\s\s\s+/g, '');
     let textArray = arrayText(textNoEnterNoTab);
-    let textIndent = indentText(textArray);
-    htmlTarget.textContent = textIndent;
+    if (invalidTag(textArray)) {
+        htmlTarget.textContent = 'Not valid HTML! Unknown tag: ' + invalidTag(textArray);
+    }else if (invalidNesting(textArray)){
+        htmlTarget.textContent = 'Not valid HTML! No pair for ' + invalidNesting(textArray) + '!';
+    }else {
+        let textIndent = indentText(textArray);
+        htmlTarget.textContent = textIndent;
+    }
 }
 
 function arrayText(text) {
     let textArray = [];
     let word = '';
     for (let i = 0; i < text.length; i++) {
-        if (allTagsRegexG.test(word) || onlyTextG.test(text[i-word.length-1] + word + text[i])) {
+        if (tagsRegex.test(word) || onlyText.test(text[i-word.length-1] + word + text[i])) {
             textArray.push(word);
             word = '';
         }
@@ -44,7 +50,7 @@ function indentText(text) {
     let textIndent = "";
     let indentation = "    ";
     let indentationRate = 0;
-    let tagList = []
+    let currentOpenTagsList = []
     for (let i = 0; i < text.length; i++) {
 
         if (selfClosingTagsRegex.test(text[i])) {
@@ -53,23 +59,23 @@ function indentText(text) {
             }else {
             textIndent += indentation.repeat(indentationRate) + text[i] + '\n';
             }
-        }else if (closeTagsRegex.test(text[i]) && (onlyText.test('>'+text[i-1]+'<') || (tagPair(tagList[tagList.length-1],text[i]) && tagList[tagList.length-1] === text[i-1] ))) { // nem jó mert az összes close tag elé belerakja de nekünk csak ott kell ahol nincs közte semmi
+        }else if (closeTagsRegex.test(text[i]) && (onlyText.test('>'+text[i-1]+'<') || (tagPair(currentOpenTagsList[currentOpenTagsList.length-1],text[i]) && currentOpenTagsList[currentOpenTagsList.length-1] === text[i-1] ))) { // nem jó mert az összes close tag elé belerakja de nekünk csak ott kell ahol nincs közte semmi
             textIndent += text[i] + '\n';
             indentationRate += -1;
-            tagList.pop()
+            currentOpenTagsList.pop()
         }else if (closeTagsRegex.test(text[i])) {
             indentationRate += -1;
             textIndent += indentation.repeat(indentationRate) + text[i] + '\n';
-            tagList.pop()
+            currentOpenTagsList.pop()
         }else if (openTagsRegex.test(text[i]) && (onlyText.test('>'+text[i+1]+'<') || tagPair(text[i],text[i+1]))) {
             textIndent += indentation.repeat(indentationRate) + text[i];
             indentationRate += 1;
-            tagList.push(text[i])
+            currentOpenTagsList.push(text[i])
         }else if (openTagsRegex.test(text[i])) {
             textIndent += indentation.repeat(indentationRate) + text[i] + '\n';
             indentationRate += 1;
-            tagList.push(text[i])
-        }else if (onlyText.test('>'+text[i]+'<') && (tagPair(tagList[tagList.length-1],text[i+1]) || text[i+1] === '<br>')){
+            currentOpenTagsList.push(text[i])
+        }else if (onlyText.test('>'+text[i]+'<') && (tagPair(currentOpenTagsList[currentOpenTagsList.length-1],text[i+1]) || text[i+1] === '<br>')){
             if (text[i-1] === '<br>'){
                 textIndent += indentation.repeat(indentationRate-1) + text[i];
             }else {
@@ -101,3 +107,33 @@ function tagPair(openTag,closeTag) {
     return false
 }
 
+function invalidTag(array) {
+    for(let tag of array) {
+        if (tagsRegex.test(tag) && !allTagsRegex.test(tag)){
+            return tag
+        }
+    }
+    return false
+}
+
+function invalidNesting (array) {
+    let currentOpenTagsList = []
+    for (let i = 0; i < array.length; i++) {
+        if (allTagsRegex.test(array[i]) && !selfClosingTagsRegex.test(array[i])){
+            if (openTagsRegex.test(array[i])){
+                currentOpenTagsList.push(array[i])
+            }else if (closeTagsRegex.test(array[i])){
+                if (!tagPair(currentOpenTagsList[currentOpenTagsList.length-1], array[i])) {
+                    if (tagPair(currentOpenTagsList[currentOpenTagsList.length-2], array[i])) {
+                        return currentOpenTagsList[currentOpenTagsList.length-1]
+                    }else {
+                        return array[i]
+                    }
+                }else {
+                currentOpenTagsList.pop()
+                }
+            }
+        }
+    }
+    return false
+}
