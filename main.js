@@ -14,6 +14,7 @@ let tagValue = /"[^><=]*"/;
 
 
 submitButton.onclick = function () {
+    htmlTarget.textContent = ""
     let text = htmlSource.value;
     let textNoEnterNoTab = text.replace(/\n/g, '').replace(/\t/g, '').replace(/\s\s\s+/g, '');
     let textArray = arrayText(textNoEnterNoTab);
